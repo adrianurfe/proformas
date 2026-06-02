@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proformas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sw:260px;--bg:#f5f5f3;--white:#fff;
+  --ink:#111110;--ink2:#3a3a38;--ink3:#6b6b69;--ink4:#a0a09e;
+  --border:1px solid #e4e4e0;
+  --sb:#141413;--sb-b:#242422;--sb-t:#888886;
+  --green:#1d5c38;--r:6px;
+}
+html,body{height:100%;font-family:'Montserrat',sans-serif;font-size:13px;background:var(--bg);color:var(--ink);display:flex;overflow:hidden}
+.sidebar{width:var(--sw);background:var(--sb);display:flex;flex-direction:column;height:100vh;flex-shrink:0;border-right:1px solid var(--sb-b)}
+.sb-head{padding:22px 20px 18px;border-bottom:1px solid var(--sb-b);flex-shrink:0}
+.sb-head .lbl{font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:#333331;margin-bottom:2px}
+.sb-head .ttl{font-size:15px;font-weight:700;color:#fff}
+.btn-new{margin:12px 14px;display:flex;align-items:center;gap:8px;padding:9px 14px;background:#fff;color:var(--ink);border:none;border-radius:var(--r);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;flex-shrink:0}
+.btn-new:hover{background:#e8e8e4}
+.sb-scroll{flex:1;overflow-y:auto;padding:4px 0 16px}
+.sb-scroll::-webkit-scrollbar{width:3px}
+.sb-scroll::-webkit-scrollbar-thumb{background:#2a2a28;border-radius:2px}
+.sb-sec{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#2e2e2c;padding:12px 20px 6px}
+.sb-proj{margin:2px 8px;border-radius:var(--r)}
+.sb-ph{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-radius:var(--r);transition:background .12s}
+.sb-ph:hover{background:rgba(255,255,255,.05)}
+.sb-ph.open{background:rgba(255,255,255,.08)}
+.sb-pn{font-size:12px;font-weight:500;color:#aaa;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ph.open .sb-pn{color:#fff}
+.sb-chev{color:#3a3a38;transition:transform .2s;flex-shrink:0;margin-left:4px}
+.sb-ph.open .sb-chev{transform:rotate(90deg);color:#666}
+.sb-del{display:none;background:none;border:none;cursor:pointer;color:#444;padding:2px 3px;border-radius:3px;flex-shrink:0}
+.sb-ph:hover .sb-del{display:flex}
+.sb-del:hover{color:#e07070}
+.sb-sub{display:none;padding:2px 0 4px}
+.sb-sub.open{display:block}
+.sb-si{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 26px;cursor:pointer;font-size:11px;color:var(--sb-t);border-radius:5px;margin:1px 8px;transition:background .12s,color .12s;border-left:2px solid transparent}
+.sb-si:hover{color:#ccc;background:rgba(255,255,255,.04)}
+.sb-si.active{color:#fff;font-weight:500;border-left-color:#fff;background:rgba(255,255,255,.07)}
+.sb-dot{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}
+.sb-si.active .sb-dot{opacity:1}
+.sb-empty{padding:12px 20px;font-size:11px;color:#3a3a38;font-style:italic}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;background:var(--white);border-bottom:var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:8px}
+.tb-crumb{font-size:12px;color:var(--ink3)}
+.tb-crumb.cur{color:var(--ink);font-weight:600}
+.tb-sep{color:var(--ink4)}
+.save-status{font-size:11px;color:var(--ink4);display:flex;align-items:center;gap:6px}
+.save-dot{width:6px;height:6px;border-radius:50%;background:var(--ink4);animation:pulse 1s infinite;display:none}
+.save-dot.show{display:block}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.content{flex:1;overflow-y:auto;padding:24px 28px 80px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:var(--ink3)}
+.empty svg{margin-bottom:14px;opacity:.2}
+.empty h2{font-size:15px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.empty p{font-size:12px;max-width:280px;line-height:1.6}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);border:var(--border);border-radius:var(--r);overflow:hidden;background:#e4e4e0;margin-bottom:20px}
+.kc{background:var(--white);padding:14px 16px;border-right:var(--border)}
+.kc:last-child{border-right:none}
+.kc .kl{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink4);margin-bottom:4px}
+.kc .kv{font-size:18px;font-weight:700;color:var(--ink);line-height:1}
+.kc .kv.g{color:var(--green)}
+.kc .ks{font-size:10px;color:var(--ink4);margin-top:3px}
+
+/* CARDS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--white);border:var(--border);border-radius:var(--r);padding:18px 20px}
+.card-full{background:var(--white);border:var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.ct{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--ink4);margin-bottom:12px;padding-bottom:8px;border-bottom:var(--border)}
+
+/* EDITABLE TABLE */
+.etbl{width:100%;border-collapse:collapse}
+.etbl th{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);text-align:left;padding:4px 6px 6px;border-bottom:var(--border)}
+.etbl th.r{text-align:right}
+.etbl td{padding:2px 4px;border-bottom:1px solid #f0f0ec;font-size:12px;vertical-align:middle}
+.etbl td.label{color:var(--ink2);padding-left:6px}
+.etbl td.computed{text-align:right;font-weight:600;color:var(--ink);padding-right:6px;white-space:nowrap}
+.etbl td.ref{text-align:right;font-size:11px;color:var(--ink4);padding-right:6px}
+.etbl td.pct-col{text-align:right;color:var(--ink4);font-size:11px;padding-right:6px;width:60px;white-space:nowrap}
+.etbl tr:last-child td{border-bottom:none}
+.etbl .tg td{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink4);padding:8px 6px 2px;border-bottom:none;background:transparent}
+.etbl .ts td{background:#f5f5f3;font-weight:700;border-top:var(--border);font-size:12px}
+.etbl .tt td{background:var(--ink);color:#fff;font-weight:700}
+.etbl .tu td{background:var(--green);color:#fff;font-weight:700}
+.ef{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:500;border:1px solid transparent;border-radius:4px;padding:3px 6px;color:var(--ink);background:transparent;text-align:right;width:100%;transition:all .15s;-moz-appearance:textfield}
+.ef::-webkit-outer-spin-button,.ef::-webkit-inner-spin-button{-webkit-appearance:none}
+.ef:hover{border-color:#e4e4e0;background:#fafaf8}
+.ef:focus{border-color:#aaa;background:#fff;outline:none;box-shadow:0 0 0 2px rgba(0,0,0,.06)}
+.ef.left{text-align:left}
+.bar{display:inline-block;height:4px;background:var(--ink3);border-radius:1px;vertical-align:middle;margin-right:4px;opacity:.25}
+.tipo-table{width:100%;border-collapse:collapse;margin-bottom:8px}
+.tipo-table th{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);padding:4px 6px 6px;border-bottom:var(--border);text-align:right}
+.tipo-table th:first-child{text-align:left}
+.tipo-table td{padding:3px 5px;border-bottom:1px solid #f0f0ec;vertical-align:middle;text-align:right}
+.tipo-table td:first-child{text-align:left}
+.tipo-table tr:last-child td{border-bottom:none}
+.tipo-total{font-size:12px;font-weight:600;color:var(--ink)}
+.btn-add{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;padding:5px 11px;border:var(--border);border-radius:5px;background:transparent;color:var(--ink3);cursor:pointer;margin-top:6px}
+.btn-add:hover{background:#f5f5f3}
+.btn-rm{background:none;border:none;cursor:pointer;color:#ccc;font-size:15px;padding:0 3px;line-height:1;transition:color .15s}
+.btn-rm:hover{color:#e07070}
+
+/* FLUJO TABLE */
+.flujo-wrap{overflow-x:auto;border:var(--border);border-radius:var(--r);background:var(--white)}
+.ft{border-collapse:collapse;white-space:nowrap;font-size:11px;min-width:100%}
+.ft th{background:var(--ink);color:#666;padding:8px 10px;text-align:right;font-weight:500;font-size:9px;letter-spacing:.3px;position:sticky;top:0;z-index:1}
+.ft th:first-child{text-align:left;width:180px;position:sticky;left:0;z-index:3;background:var(--ink);color:#555;min-width:180px}
+.ft th:nth-child(2){text-align:right;position:sticky;left:180px;z-index:3;background:var(--ink);color:#555;min-width:90px}
+.ft th:nth-child(3){text-align:right;position:sticky;left:270px;z-index:3;background:var(--ink);color:#6fcf97;min-width:110px;font-size:9px;border-right:1px solid #2a2a28}
+.ft td{padding:5px 10px;text-align:right;border-bottom:1px solid #f5f5f3}
+.ft td:first-child{text-align:left;position:sticky;left:0;z-index:2;background:#f7f7f5;font-size:10px;font-weight:500;color:var(--ink2);border-right:var(--border);min-width:180px}
+.ft td:nth-child(2){position:sticky;left:180px;z-index:2;background:#f0f0ec;font-weight:600;font-size:11px;border-right:var(--border);min-width:90px}
+.ft td:nth-child(3){position:sticky;left:270px;z-index:2;background:#f5f5f0;font-size:11px;border-right:1px solid #e8e8e2;min-width:110px}
+.ft td:nth-child(2){position:sticky;left:180px;z-index:2;background:#f0f0ec;font-weight:600;font-size:11px;border-right:var(--border);min-width:90px}
+/* section headers */
+.ft .frs td{background:#1c1c1a}
+.ft .frs td:first-child{background:#1c1c1a;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#555;border-right:1px solid #252523}
+.ft .frs td:nth-child(2){background:#1c1c1a;border-right:1px solid #252523}
+/* ingreso */
+.ft .fri td{background:#f0f7f3}
+.ft .fri td:first-child{background:#e8f3ec}
+.ft .fri td:nth-child(2){background:#dff0e5}
+/* egreso */
+.ft .fre td{background:#fdf4f4}
+.ft .fre td:first-child{background:#faeded}
+.ft .fre td:nth-child(2){background:#f5e4e4}
+/* neto */
+.ft .frn td{background:var(--ink);color:#888;font-weight:600}
+.ft .frn td:first-child{color:#aaa}
+.ft .frn td:nth-child(2){color:#ccc}
+.ft .frn td.pos{color:#6fcf97}.ft .frn td.neg{color:#e07070}
+/* acum */
+.ft .fra td{background:#0d0d0c;color:#555;font-weight:600}
+.ft .fra td:first-child{color:#666}
+.ft .fra td:nth-child(2){color:#888}
+.ft .fra td.pos{color:#6fcf97}.ft .fra td.neg{color:#e07070}
+/* financiamiento */
+.ft .ffin td{background:#1a1f1a;color:#7a9a7a}
+.ft .ffin td:first-child{color:#6a8a6a}
+.ft .ffin td.neg{color:#e07070}
+/* intereses */
+.ft .fint td{background:#1f1a1a;color:#9a7a7a}
+.ft .fint td:first-child{color:#8a6a6a}
+
+/* input inside flujo table */
+.fi{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:500;border:1px solid transparent;border-radius:3px;padding:2px 5px;color:var(--ink);background:rgba(255,255,255,0.9);text-align:right;width:80px;transition:all .12s;-moz-appearance:textfield}
+.fi::-webkit-outer-spin-button,.fi::-webkit-inner-spin-button{-webkit-appearance:none}
+.fi:hover{border-color:#d0d0cc;background:#fff}
+.fi:focus{border-color:#999;background:#fff;outline:none}
+.fi.dark{color:#fff;background:rgba(255,255,255,0.12)}
+.fi.dark:hover{background:rgba(255,255,255,0.2)}
+.fi.dark:focus{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.4)}
+
+/* summary bottom */
+.sum-row{display:grid;grid-template-columns:repeat(5,1fr);border:var(--border);border-radius:var(--r);overflow:hidden;background:#e4e4e0;margin-top:16px}
+.src{background:var(--white);padding:13px 15px;border-right:var(--border)}
+.src:last-child{border-right:none}
+.src .sl{font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink4);margin-bottom:3px}
+.src .sv{font-size:14px;font-weight:700;color:var(--ink)}
+.src .sv.g{color:var(--green)}
+.src .sv.r{color:#8b2e2e}
+
+/* chart */
+.chart-card{background:var(--white);border:var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:16px;height:180px;position:relative}
+.chart-card canvas{width:100%!important;height:100%!important}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:var(--r);font-size:12px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.err{background:#8b2e2e}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:8px;padding:24px;width:340px;box-shadow:0 16px 48px rgba(0,0,0,.2)}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:5px}
+.modal p{font-size:12px;color:var(--ink3);line-height:1.5;margin-bottom:16px}
+.modal-row{margin-bottom:12px}
+.modal-row label{display:block;font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--ink3);margin-bottom:4px}
+.modal-row input,.modal-row select{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;border:var(--border);border-radius:6px;padding:8px 10px;color:var(--ink);width:100%}
+.modal-row input:focus,.modal-row select:focus{outline:none;border-color:#999}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.btn-cancel{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;padding:7px 13px;border:var(--border);border-radius:5px;background:transparent;color:var(--ink3);cursor:pointer}
+.btn-confirm{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;padding:7px 16px;border:none;border-radius:5px;background:var(--ink);color:#fff;cursor:pointer}
+.btn-danger{background:#8b2e2e}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-head">
+    <div class="lbl">Plataforma</div>
+    <div class="ttl">Proformas</div>
+  </div>
+  <button class="btn-new" onclick="openNewProject()">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    Nuevo proyecto
+  </button>
+  <div class="sb-scroll">
+    <div class="sb-sec">Proyectos</div>
+    <div id="projList"><div class="sb-empty">Cargando...</div></div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left" id="tbCrumb"><span class="tb-crumb cur">Selecciona un proyecto</span></div>
+    <div class="save-status"><div class="save-dot" id="saveDot"></div><span id="saveText"></span></div>
+  </div>
+  <div class="content" id="contentArea">
+    <div class="empty">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none"><rect x="5" y="7" width="34" height="30" rx="3" stroke="#111" stroke-width="2"/><path d="M12 17h20M12 23h20M12 29h11" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg>
+      <h2>Sin proyecto seleccionado</h2><p>Elige un proyecto del sidebar o crea uno nuevo.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="npOverlay" onclick="if(event.target===this)closeNewProject()">
+  <div class="modal">
+    <h3>Nuevo proyecto</h3><p>La proforma se abre en blanco lista para llenar.</p>
+    <div class="modal-row"><label>Nombre</label><input type="text" id="np-name" placeholder="Ej. Torre Andares" onkeydown="if(event.key==='Enter')createNewProject()"></div>
+    <div class="modal-row"><label>Escenario</label><select id="np-esc"><option>Conservador</option><option>Moderado</option><option>Optimista</option></select></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeNewProject()">Cancelar</button>
+      <button class="btn-confirm" onclick="createNewProject()">Crear →</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="delOverlay">
+  <div class="modal">
+    <h3>Eliminar proyecto</h3><p id="delMsg"></p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDelete()">Cancelar</button>
+      <button class="btn-confirm btn-danger" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const SUPA_URL='https://ppdyogtveiltxzymdxsa.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwZHlvZ3R2ZWlsdHh6eW1keHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODU2NjAsImV4cCI6MjA5NTY2MTY2MH0.Ard8M1RILsSXUILV8z7tq8fPXUhFFSMdPhm5Cgjk6pg';
+const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+let projects=[],activeProjId=null,activeView='resumen';
+let chartInst=null,saveTimer=null,deleteTargetId=null,tipoIdCounter=0;
+
+const $=id=>document.getElementById(id);
+const nv=id=>parseFloat(($(id)?.value||'').replace(/,/g,''))||0;
+const fmt=v=>{if(!v||v===0)return'—';const s=v<0?'-':'',a=Math.abs(v);return s+'$'+Math.round(a).toLocaleString('es-MX');};
+const fmtN=v=>v?Math.round(v).toLocaleString():'—';
+const fmtPct=(v,t)=>t?((v/t)*100).toFixed(2)+'%':'—';
+const bw=(v,t)=>t?Math.min(Math.round((Math.abs(v)/t)*110),110):0;
+const nvEl=id=>parseFloat(($(id)?.value||'').replace(/,/g,''))||0;
+
+function toast(msg,type='ok'){const el=$('toast');el.textContent=msg;el.className='toast show'+(type==='err'?' err':'');setTimeout(()=>el.className='toast',3000);}
+function setSave(s){const dot=$('saveDot'),txt=$('saveText');if(s==='saving'){dot.classList.add('show');txt.textContent='Guardando...';}else if(s==='saved'){dot.classList.remove('show');txt.textContent='Guardado ✓';}else{dot.classList.remove('show');txt.textContent='';}}
+
+// ── SUPABASE ──
+async function loadProjects(){
+  const{data,error}=await supa.from('projects').select('*').order('created_at',{ascending:true});
+  if(error){toast('Error al cargar','err');return;}
+  projects=data||[];renderSidebar();
+}
+
+// ── SIDEBAR ──
+function renderSidebar(){
+  const list=$('projList');list.innerHTML='';
+  if(!projects.length){list.innerHTML='<div class="sb-empty">Sin proyectos aún</div>';return;}
+  projects.forEach(p=>{
+    const isOpen=activeProjId===p.id;
+    const div=document.createElement('div');div.className='sb-proj';
+    div.innerHTML=`
+      <div class="sb-ph ${isOpen?'open':''}" onclick="toggleProj('${p.id}')">
+        <span class="sb-pn">${p.name}</span>
+        <div style="display:flex;align-items:center;gap:3px">
+          <button class="sb-del" onclick="event.stopPropagation();openDelete('${p.id}','${(p.name||'').replace(/'/g,"\\'")}')">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 3V2h3v1M5 5v4M7 5v4M2.5 3l.5 6.5h6L9.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <svg class="sb-chev" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M3.5 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="sb-sub ${isOpen?'open':''}">
+        <div class="sb-si ${isOpen&&activeView==='resumen'?'active':''}" onclick="goTo('${p.id}','resumen')"><span class="sb-dot"></span>Resumen Ejecutivo</div>
+        <div class="sb-si ${isOpen&&activeView==='flujo'?'active':''}" onclick="goTo('${p.id}','flujo')"><span class="sb-dot"></span>Flujo Financiero</div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+function toggleProj(id){if(activeProjId===id){activeProjId=null;renderSidebar();showEmpty();}else{activeProjId=id;activeView='resumen';renderSidebar();renderView();}}
+function goTo(id,view){activeProjId=id;activeView=view;renderSidebar();renderView();}
+function showEmpty(){$('tbCrumb').innerHTML='<span class="tb-crumb cur">Selecciona un proyecto</span>';setSave('');$('contentArea').innerHTML='<div class="empty"><svg width="44" height="44" viewBox="0 0 44 44" fill="none"><rect x="5" y="7" width="34" height="30" rx="3" stroke="#111" stroke-width="2"/><path d="M12 17h20M12 23h20M12 29h11" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg><h2>Sin proyecto seleccionado</h2><p>Elige un proyecto del sidebar o crea uno nuevo.</p></div>';}
+
+// ── CALC ──
+function calcResumen(p){
+  const tipos=p._tipos||p.tipos||[];
+  const terrM2=p._terr_m2??p.terr_m2??0;
+  const cus=p._terr_cus??p.terr_cus??3.2;
+  const amenPct=(p._terr_amen??p.terr_amen??18)/100;
+  const m2Total=terrM2*cus, m2Amenidad=m2Total*amenPct, m2Vendible=m2Total-m2Amenidad;
+  const eCajonM2=p._e_m2??p.e_m2??35;
+  const eCajones=tipos.reduce((a,t)=>a+(t.cajones||0)*(t.n||0),0);
+  const m2Estac=eCajones*eCajonM2;
+  const ventas=tipos.reduce((a,t)=>a+(t.n||0)*(t.m2||0)*(t.precio||0),0);
+  const units=tipos.reduce((a,t)=>a+(t.n||0),0);
+  const terrPct=(p._terr_pct??p.terr_pct??14)/100;
+  const terrFidPct=(p._terr_fidpct??p.terr_fidpct??0.23)/100;
+  const terreno=ventas*terrPct, fideicomiso=ventas*terrFidPct, terrenoTotal=terreno+fideicomiso;
+  const terrRefM2=terrM2?terrenoTotal/terrM2:0;
+  const cBr=p._c_br??p.c_br??0, cDep=p._c_dep??p.c_dep??0;
+  const construcBR=m2Estac*cBr, construcDep=m2Total*cDep, construc=construcBR+construcDep;
+  const est=construc*(p._c_est??p.c_est??0)/100;
+  const gest=ventas*(p._c_gest??p.c_gest??0)/100;
+  const fia=ventas*(p._c_fia??p.c_fia??0)/100;
+  const sia=ventas*(p._c_sia??p.c_sia??0)/100;
+  const prelim=est+gest+fia+sia;
+  const pe=construc*(p._c_pe??p.c_pe??0)/100;
+  const ind=construc*(p._c_ind??p.c_ind??0)/100;
+  const leg=construc*(p._c_leg??p.c_leg??0)/100;
+  const imp=construc*(p._c_imp??p.c_imp??0)/100;
+  const mant=construc*(p._c_mant??p.c_mant??0)/100;
+  const pm=ventas*(p._c_pm??p.c_pm??0)/100;
+  const mkt=ventas*(p._c_mkt??p.c_mkt??0)/100;
+  const com=ventas*(p._c_com??p.c_com??0)/100;
+  const gv=ventas*(p._c_gv??p.c_gv??0)/100;
+  const cfijo=pe+ind+leg+imp+mant+pm+mkt+com+gv;
+  const costo=terrenoTotal+prelim+construc+cfijo, util=ventas-costo;
+  const tiie=p._tiie??p.tiie??6.5;
+  const sobretasa=p._sobretasa??p.sobretasa??3;
+  const tasa=tiie+sobretasa; // tasa total anual
+  const mesesN=p._meses??p.meses??24;
+  // Capital y banco vienen del flujo (suma de ministraciones capturadas)
+  const flujoData=p.flujo_data||{};
+  const cap=Array.from({length:mesesN+1},(_,i)=>parseFloat(flujoData[`cap_${i}`])||0).reduce((a,v)=>a+v,0);
+  const banco=Array.from({length:mesesN+1},(_,i)=>parseFloat(flujoData[`ban_${i}`])||0).reduce((a,v)=>a+v,0);
+  // Costo financiero real = replica exacta del cálculo del flujo
+  const tasaMens=tasa/100/12;
+  let saldoBancoEst=0, costoFinReal=0, bancoUsedEst=false;
+  const comAperPct=(p.com_apertura||1.5)/100;
+  for(let i=0;i<=mesesN;i++){
+    const banM=parseFloat(flujoData[`ban_${i}`])||0;
+    const amortM=parseFloat(flujoData[`amort_${i}`])||0;
+    // Intereses sobre saldo ANTES de ministrar/amortizar este mes
+    costoFinReal+=saldoBancoEst*tasaMens;
+    // Comisión apertura primer mes con banco
+    if(banM>0&&!bancoUsedEst){costoFinReal+=construc*comAperPct;bancoUsedEst=true;}
+    // Actualizar saldo
+    saldoBancoEst+=banM-amortM;
+    if(saldoBancoEst<0)saldoBancoEst=0;
+  }
+  // Si no hay nada capturado en flujo, usar estimación simple
+  const hayFlujo=banco>0||Object.keys(flujoData).length>0;
+  const costoFin=hayFlujo?costoFinReal:banco*(tasa/100/12)*mesesN;
+  const utilFin=util-costoFin;
+  const precioPromedio=units?ventas/units:0;
+  return{tipos,units,terrM2,cus,amenPct,m2Total,m2Amenidad,m2Vendible,eCajones,eCajonM2,m2Estac,ventas,terrPct,terrFidPct,terreno,fideicomiso,terrenoTotal,terrRefM2,construcBR,construcDep,construc,est,gest,fia,sia,prelim,pe,ind,leg,imp,mant,pm,mkt,com,gv,cfijo,costo,util,cap,banco,tasa,meses:mesesN,costoFin,utilFin,precioPromedio};
+}
+
+function getTipos(){
+  return Array.from(document.querySelectorAll('#tipoContainer .tipo-row')).map(row=>{
+    const id=row.dataset.id;
+    return{id,label:$('tl-'+id)?.value||'',n:parseFloat($('tn-'+id)?.value)||0,m2:parseFloat($('tm-'+id)?.value)||0,precio:parseFloat($('tp-'+id)?.value)||0,cajones:parseFloat($('tc-'+id)?.value)||0};
+  });
+}
+
+// ── RENDER ──
+function renderView(){
+  const p=projects.find(x=>x.id===activeProjId);if(!p)return;
+  $('tbCrumb').innerHTML=`<span class="tb-crumb">${p.name}</span><span class="tb-sep"> / </span><span class="tb-crumb cur">${activeView==='resumen'?'Resumen Ejecutivo':'Flujo Financiero'}</span>`;
+  if(activeView==='resumen')renderResumen(p);else renderFlujo(p);
+}
+
+// ── LIVE RECALC ──
+function updateCalcs(){
+  const p=projects.find(x=>x.id===activeProjId);if(!p)return;
+  // Read DOM into temp obj
+  const tmp={...p,_tipos:getTipos(),_terr_m2:nv('f-t-m2'),_terr_cus:nv('f-t-cus'),_terr_amen:nv('f-t-amen'),_terr_pct:nv('f-t-pct'),_terr_fidpct:nv('f-t-fidpct'),_e_m2:nv('f-e-m2'),_c_br:nv('f-c-br'),_c_dep:nv('f-c-dep'),_c_est:nv('f-c-est'),_c_gest:nv('f-c-gest'),_c_fia:nv('f-c-fia'),_c_sia:nv('f-c-sia'),_c_pe:nv('f-c-pe'),_c_ind:nv('f-c-ind'),_c_leg:nv('f-c-leg'),_c_imp:nv('f-c-imp'),_c_mant:nv('f-c-mant'),_c_pm:nv('f-c-pm'),_c_mkt:nv('f-c-mkt'),_c_com:nv('f-c-com'),_c_gv:nv('f-c-gv'),_meses:nv('f-g-meses'),_tiie:nv('f-v-tiie'),_sobretasa:nv('f-v-sobretasa')};
+  const c=calcResumen(tmp);
+  // KPIs
+  [['kpi-ventas',fmt(c.ventas),c.units+' unidades'],['kpi-costo',fmt(c.costo),fmtPct(c.costo,c.ventas)+' sobre ventas'],['kpi-util',fmt(c.util),fmtPct(c.util,c.ventas)+' margen'],['kpi-inv',fmt(c.cap+c.banco),'Capital + Banco'],['kpi-rend',c.cap+c.banco?fmtPct(c.utilFin,c.cap+c.banco):'—','Util. / Inversión']].forEach(([id,v,s])=>{const el=$(id);if(!el)return;el.querySelector('.kv').textContent=v;el.querySelector('.ks').textContent=s;});
+  // Tipos
+  getTipos().forEach(t=>{const el=$('tt-'+t.id);if(el)el.textContent=fmt(t.n*t.m2*t.precio);const ce=$('tc-total-'+t.id);if(ce)ce.textContent=t.cajones&&t.n?t.cajones*t.n:'—';});
+  // Superficies
+  set('calc-m2total',fmtN(c.m2Total)+' m²');set('calc-m2amen',fmtN(c.m2Amenidad)+' m²');set('calc-m2vend',fmtN(c.m2Vendible)+' m²');
+  set('calc-cajones',c.eCajones||'—');set('calc-m2estac',fmtN(c.m2Estac)+' m²');
+  set('calc-terrRefM2',c.terrRefM2?'$'+Math.round(c.terrRefM2).toLocaleString()+'/m²':'—');
+  // Terreno
+  set('calc-terreno',fmt(c.terreno));set('calc-terrfid',fmt(c.fideicomiso));set('calc-terrTotal',fmt(c.terrenoTotal));set('calc-terr-pct',fmtPct(c.terrenoTotal,c.ventas));
+  // Construc labels con m² dinámicos
+  set('calc-cbr',fmt(c.construcBR));set('calc-cdep',fmt(c.construcDep));set('calc-construc',fmt(c.construc));set('calc-con-pct',fmtPct(c.construc,c.ventas));
+  set('lbl-cbr', `Bajo Rasante (${fmtN(c.m2Estac)} m²)`);
+  set('lbl-cdep', `Construcción Deptos (${fmtN(c.m2Total)} m²)`);
+  // Prelim
+  set('calc-est',fmt(c.est));set('calc-gest',fmt(c.gest));set('calc-fia',fmt(c.fia));set('calc-sia',fmt(c.sia));set('calc-prelim',fmt(c.prelim));set('calc-pre-pct',fmtPct(c.prelim,c.ventas));
+  // CF
+  set('calc-pe',fmt(c.pe));set('calc-ind',fmt(c.ind));set('calc-leg',fmt(c.leg));set('calc-imp',fmt(c.imp));set('calc-mant',fmt(c.mant));set('calc-pm',fmt(c.pm));set('calc-mkt',fmt(c.mkt));set('calc-com',fmt(c.com));set('calc-gv',fmt(c.gv));set('calc-cfijo',fmt(c.cfijo));set('calc-cf-pct',fmtPct(c.cfijo,c.ventas));
+  // Totales
+  set('calc-costo',fmt(c.costo));set('calc-costo-pct',fmtPct(c.costo,c.ventas));set('calc-util',fmt(c.util));set('calc-util-pct',fmtPct(c.util,c.ventas));
+  set('calc-costoFin',fmt(c.costoFin));set('calc-utilFin',fmt(c.utilFin));
+  // Capital/banco del flujo
+  set('calc-cap', fmt(c.cap));
+  set('calc-banco', fmt(c.banco));
+  set('calc-lineacredito', fmt(c.construc));
+  const disponible=c.construc-c.banco;
+  const dispEl=$('calc-disponible');
+  if(dispEl){dispEl.textContent=fmt(disponible);dispEl.style.color=disponible>=0?'var(--green)':'#e07070';}
+  set('calc-precioprom', fmt(c.precioPromedio));
+  const p2=projects.find(x=>x.id===activeProjId);
+  set('calc-comaper-monto', fmt(c.construc*(nv('f-v-comaper')||p2?.com_apertura||1.5)/100));
+  const tiieV=nv('f-v-tiie')||p2?.tiie||6.5;
+  const sobreV=nv('f-v-sobretasa')||p2?.sobretasa||3;
+  const tasaTotal=tiieV+sobreV;
+  set('calc-tasatotal', tasaTotal.toFixed(2)+'%');
+  set('calc-tasamensual', (tasaTotal/12).toFixed(4)+'%');
+  // Bars
+  [['bar-terr',c.terrenoTotal],['bar-pre',c.prelim],['bar-con',c.construc],['bar-cf',c.cfijo]].forEach(([id,v])=>{const el=$(id);if(el)el.style.width=bw(v,c.ventas)+'px';});
+  scheduleSave();
+}
+
+// ── RENDER RESUMEN ──
+function renderResumen(p){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  tipoIdCounter=0;
+  const c=calcResumen(p);
+  const tipos=c.tipos;
+
+  const tipoRows=tipos.map((t,i)=>{
+    tipoIdCounter++;const tid=tipoIdCounter;
+    return`<tr class="tipo-row" data-id="${tid}">
+      <td><input class="ef left" type="text" id="tl-${tid}" value="${t.label||'Tipo '+(i+1)}" oninput="updateCalcs()"></td>
+      <td><input class="ef" type="number" id="tn-${tid}" value="${t.n||''}" placeholder="0" oninput="updateCalcs()"></td>
+      <td><input class="ef" type="number" id="tm-${tid}" value="${t.m2||''}" placeholder="0" oninput="updateCalcs()"></td>
+      <td><input class="ef" type="number" id="tp-${tid}" value="${t.precio||''}" placeholder="0" oninput="updateCalcs()"></td>
+      <td><input class="ef" type="number" id="tc-${tid}" value="${t.cajones||''}" placeholder="1" oninput="updateCalcs()"></td>
+      <td class="tipo-total" id="tt-${tid}">${fmt((t.n||0)*(t.m2||0)*(t.precio||0))}</td>
+      <td><span id="tc-total-${tid}" style="font-size:11px;color:var(--ink3)">${t.cajones&&t.n?t.cajones*t.n:'—'}</span></td>
+      <td><button class="btn-rm" onclick="removeTipo(${tid})">×</button></td>
+    </tr>`;
+  }).join('');
+
+  $('contentArea').innerHTML=`
+<div class="kpi-row">
+  <div class="kc" id="kpi-ventas"><div class="kl">Ventas Totales</div><div class="kv">${fmt(c.ventas)}</div><div class="ks">${c.units} unidades</div></div>
+  <div class="kc" id="kpi-costo"><div class="kl">Costo Total</div><div class="kv">${fmt(c.costo)}</div><div class="ks">${fmtPct(c.costo,c.ventas)} sobre ventas</div></div>
+  <div class="kc" id="kpi-util"><div class="kl">Utilidad</div><div class="kv g">${fmt(c.util)}</div><div class="ks">${fmtPct(c.util,c.ventas)} margen</div></div>
+  <div class="kc" id="kpi-inv"><div class="kl">Inversión</div><div class="kv">${fmt(c.cap+c.banco)}</div><div class="ks">Capital + Banco</div></div>
+  <div class="kc" id="kpi-rend"><div class="kl">Util. / Inversión</div><div class="kv g">${c.cap+c.banco?fmtPct(c.utilFin,c.cap+c.banco):'—'}</div><div class="ks">rendimiento</div></div>
+</div>
+<div class="two-col">
+<div class="card">
+<div class="ct">Premisas del Proyecto</div>
+<table class="etbl">
+<thead><tr><th>Concepto</th><th class="r">Input</th><th class="r">Calculado</th></tr></thead>
+<tbody>
+  <tr class="tg"><td colspan="3">General</td></tr>
+  <tr><td class="label">Nombre</td><td colspan="2"><input class="ef left" type="text" id="f-g-name" value="${p.name||''}" oninput="updateName(this.value)" style="width:100%"></td></tr>
+  <tr><td class="label">Escenario</td><td colspan="2" style="text-align:right"><select class="ef" id="f-g-esc" style="width:auto" onchange="scheduleSave()"><option ${p.escenario==='Conservador'?'selected':''}>Conservador</option><option ${p.escenario==='Moderado'?'selected':''}>Moderado</option><option ${p.escenario==='Optimista'?'selected':''}>Optimista</option></select></td></tr>
+  <tr><td class="label">Duración (meses)</td><td><input class="ef" type="number" id="f-g-meses" value="${p.meses||24}" oninput="updateCalcs()"></td><td class="ref">—</td></tr>
+  <tr><td class="label">Tasa financiera anual (%)</td><td><input class="ef" type="number" id="f-g-tasa" value="${p.tasa||14}" step="0.1" oninput="updateCalcs()"></td><td class="ref">—</td></tr>
+  <tr class="tg"><td colspan="3">Terreno</td></tr>
+  <tr><td class="label">Superficie terreno (m²)</td><td><input class="ef" type="number" id="f-t-m2" value="${p.terr_m2||''}" placeholder="0" oninput="updateCalcs()"></td><td class="ref">—</td></tr>
+  <tr><td class="label">CUS</td><td><input class="ef" type="number" id="f-t-cus" value="${p.terr_cus||3.2}" step="0.1" oninput="updateCalcs()"></td><td class="computed" id="calc-m2total">${fmtN(c.m2Total)} m²</td></tr>
+  <tr><td class="label">% Amenidades / Pasillos</td><td><input class="ef" type="number" id="f-t-amen" value="${p.terr_amen||18}" step="0.1" oninput="updateCalcs()"></td><td class="computed" id="calc-m2amen">${fmtN(c.m2Amenidad)} m²</td></tr>
+  <tr><td class="label">Área Vendible</td><td class="ref">—</td><td class="computed" id="calc-m2vend">${fmtN(c.m2Vendible)} m²</td></tr>
+  <tr><td class="label">% Terreno sobre ventas</td><td><input class="ef" type="number" id="f-t-pct" value="${p.terr_pct||14}" step="0.01" oninput="updateCalcs()"></td><td class="computed" id="calc-terrRefM2">${c.terrRefM2?'$'+Math.round(c.terrRefM2).toLocaleString()+'/m²':'—'}</td></tr>
+  <tr><td class="label">% Fideicomiso</td><td><input class="ef" type="number" id="f-t-fidpct" value="${p.terr_fidpct||0.23}" step="0.01" oninput="updateCalcs()"></td><td class="ref">—</td></tr>
+  <tr class="tg"><td colspan="3">Estacionamiento</td></tr>
+  <tr><td class="label">m² por cajón (incl. circulación)</td><td><input class="ef" type="number" id="f-e-m2" value="${p.e_m2||35}" placeholder="35" oninput="updateCalcs()"></td><td class="ref">—</td></tr>
+  <tr><td class="label">Total cajones</td><td class="ref">automático</td><td class="computed" id="calc-cajones">${c.eCajones||'—'}</td></tr>
+  <tr><td class="label">m² estacionamiento</td><td class="ref">—</td><td class="computed" id="calc-m2estac">${fmtN(c.m2Estac)} m²</td></tr>
+  <tr class="tg"><td colspan="3">Plan de pagos</td></tr>
+  <tr><td class="label">% Unidades contado</td><td><input class="ef" type="number" id="f-v-pct" value="${p.pct_contado||30}" step="1" oninput="scheduleSave()"></td><td class="ref">${Math.round((p.pct_contado||30)/100*c.units)} unid.</td></tr>
+  <tr><td class="label">% Enganche contado</td><td><input class="ef" type="number" id="f-v-ec" value="${p.ec_pct||90}" oninput="scheduleSave()"></td><td class="ref">—</td></tr>
+  <tr><td class="label">% Enganche financiero</td><td><input class="ef" type="number" id="f-v-ef" value="${p.ef_pct||35}" oninput="scheduleSave()"></td><td class="ref">—</td></tr>
+  <tr class="tg"><td colspan="3">Financiamiento</td></tr>
+  <tr><td class="label">Capital propio ($)</td><td class="ref" style="font-size:10px;color:var(--ink4)">suma del flujo</td><td class="computed" id="calc-cap">${fmt(c.cap)}</td></tr>
+  <tr><td class="label">Línea de crédito banco</td><td class="ref" style="font-size:10px;color:var(--ink4)">= costo construcción</td><td class="computed" id="calc-lineacredito">${fmt(c.construc)}</td></tr>
+  <tr><td class="label">Ministrado acumulado</td><td class="ref" style="font-size:10px;color:var(--ink4)">suma del flujo</td><td class="computed" id="calc-banco">${fmt(c.banco)}</td></tr>
+  <tr><td class="label">Disponible en línea</td><td class="ref">—</td><td class="computed" id="calc-disponible" style="color:${c.construc-c.banco>0?'var(--green)':'#e07070'}">${fmt(c.construc-c.banco)}</td></tr>
+  <tr><td class="label">TIIE (%)</td><td><input class="ef" type="number" id="f-v-tiie" value="${p.tiie||6.5}" step="0.01" oninput="updateCalcs()"></td><td class="ref">tasa base</td></tr>
+  <tr><td class="label">Sobre tasa banco (%)</td><td><input class="ef" type="number" id="f-v-sobretasa" value="${p.sobretasa||3}" step="0.01" oninput="updateCalcs()"></td><td class="ref">spread</td></tr>
+  <tr class="ts"><td class="label">Tasa total anual</td><td class="ref">—</td><td class="computed" id="calc-tasatotal">${((p.tiie||6.5)+(p.sobretasa||3)).toFixed(2)}%</td></tr>
+  <tr><td class="label">Tasa mensual</td><td class="ref">—</td><td class="ref" id="calc-tasamensual">${(((p.tiie||6.5)+(p.sobretasa||3))/12).toFixed(4)}%</td></tr>
+  <tr><td class="label">% Comisión apertura</td><td><input class="ef" type="number" id="f-v-comaper" value="${p.com_apertura||1.5}" step="0.01" oninput="updateCalcs()"></td><td class="ref" id="calc-comaper-monto">${fmt(c.construc*(p.com_apertura||1.5)/100)}</td></tr>
+  <tr><td class="label">Costo financiero estimado</td><td class="ref">—</td><td class="computed" id="calc-costoFin">${fmt(c.costoFin)}</td></tr>
+  <tr class="tu"><td class="label" style="color:#fff">Utilidad – Financieros</td><td></td><td class="computed" style="color:#fff" id="calc-utilFin">${fmt(c.utilFin)}</td></tr>
+  <tr><td class="label" style="color:var(--ink3);font-size:10px">Precio promedio/unidad</td><td class="ref">—</td><td class="ref" id="calc-precioprom">${fmt(c.precioPromedio)}</td></tr>
+</tbody>
+</table>
+</div>
+<div class="card">
+<div class="ct">Estructura de Costos</div>
+<table class="etbl">
+<thead><tr><th>Concepto</th><th class="r">%</th><th class="r">Total</th><th class="r">% Ventas</th></tr></thead>
+<tbody>
+  <tr class="tg"><td colspan="4">Terreno</td></tr>
+  <tr><td class="label">Terreno</td><td class="ref">${p.terr_pct||14}%</td><td class="computed" id="calc-terreno">${fmt(c.terreno)}</td><td class="pct-col">—</td></tr>
+  <tr><td class="label">Gastos fideicomiso</td><td class="ref">${p.terr_fidpct||0.23}%</td><td class="computed" id="calc-terrfid">${fmt(c.fideicomiso)}</td><td class="pct-col">—</td></tr>
+  <tr class="ts"><td class="label" colspan="2">SUBTOTAL</td><td class="computed" id="calc-terrTotal">${fmt(c.terrenoTotal)}</td><td class="pct-col"><span class="bar" id="bar-terr" style="width:${bw(c.terrenoTotal,c.ventas)}px"></span><span id="calc-terr-pct">${fmtPct(c.terrenoTotal,c.ventas)}</span></td></tr>
+  <tr class="tg"><td colspan="4">Preliminares</td></tr>
+  <tr><td class="label">Estudios Téc. y Licencias</td><td><input class="ef" type="number" id="f-c-est" value="${p.c_est||''}" step="0.01" placeholder="1.5" oninput="updateCalcs()"><div style="font-size:9px;color:var(--ink4);text-align:right">% construc.</div></td><td class="computed" id="calc-est">${fmt(c.est)}</td><td class="pct-col">${fmtPct(c.est,c.ventas)}</td></tr>
+  <tr><td class="label">Gestión</td><td><input class="ef" type="number" id="f-c-gest" value="${p.c_gest||''}" step="0.01" placeholder="0.5" oninput="updateCalcs()"><div style="font-size:9px;color:var(--ink4);text-align:right">% ventas</div></td><td class="computed" id="calc-gest">${fmt(c.gest)}</td><td class="pct-col">${fmtPct(c.gest,c.ventas)}</td></tr>
+  <tr><td class="label">Fianza y Seguros</td><td><input class="ef" type="number" id="f-c-fia" value="${p.c_fia||''}" step="0.01" placeholder="0.25" oninput="updateCalcs()"><div style="font-size:9px;color:var(--ink4);text-align:right">% ventas</div></td><td class="computed" id="calc-fia">${fmt(c.fia)}</td><td class="pct-col">${fmtPct(c.fia,c.ventas)}</td></tr>
+  <tr><td class="label">Factibilidad SIAPA / CFE</td><td><input class="ef" type="number" id="f-c-sia" value="${p.c_sia||''}" step="0.01" placeholder="1" oninput="updateCalcs()"><div style="font-size:9px;color:var(--ink4);text-align:right">% ventas</div></td><td class="computed" id="calc-sia">${fmt(c.sia)}</td><td class="pct-col">${fmtPct(c.sia,c.ventas)}</td></tr>
+  <tr class="ts"><td class="label" colspan="2">SUBTOTAL</td><td class="computed" id="calc-prelim">${fmt(c.prelim)}</td><td class="pct-col"><span class="bar" id="bar-pre" style="width:${bw(c.prelim,c.ventas)}px"></span><span id="calc-pre-pct">${fmtPct(c.prelim,c.ventas)}</span></td></tr>
+  <tr class="tg"><td colspan="4">Construcción ($/m²)</td></tr>
+  <tr><td class="label" id="lbl-cbr">Bajo Rasante (${fmtN(c.m2Estac)} m²)</td><td><input class="ef" type="number" id="f-c-br" value="${p.c_br||''}" placeholder="7500" oninput="updateCalcs()"></td><td class="computed" id="calc-cbr">${fmt(c.construcBR)}</td><td class="pct-col">${fmtPct(c.construcBR,c.ventas)}</td></tr>
+  <tr><td class="label" id="lbl-cdep">Construcción Deptos (${fmtN(c.m2Total)} m²)</td><td><input class="ef" type="number" id="f-c-dep" value="${p.c_dep||''}" placeholder="20000" oninput="updateCalcs()"></td><td class="computed" id="calc-cdep">${fmt(c.construcDep)}</td><td class="pct-col">${fmtPct(c.construcDep,c.ventas)}</td></tr>
+  <tr class="ts"><td class="label" colspan="2">SUBTOTAL</td><td class="computed" id="calc-construc">${fmt(c.construc)}</td><td class="pct-col"><span class="bar" id="bar-con" style="width:${bw(c.construc,c.ventas)}px"></span><span id="calc-con-pct">${fmtPct(c.construc,c.ventas)}</span></td></tr>
+  <tr class="tg"><td colspan="4">Costo Fijo — % sobre construcción</td></tr>
+  <tr><td class="label">Proyecto Ejecutivo</td><td><input class="ef" type="number" id="f-c-pe" value="${p.c_pe||''}" step="0.01" placeholder="2" oninput="updateCalcs()"></td><td class="computed" id="calc-pe">${fmt(c.pe)}</td><td class="pct-col">${fmtPct(c.pe,c.ventas)}</td></tr>
+  <tr><td class="label">Indirecto Construcción</td><td><input class="ef" type="number" id="f-c-ind" value="${p.c_ind||''}" step="0.01" placeholder="4.64" oninput="updateCalcs()"></td><td class="computed" id="calc-ind">${fmt(c.ind)}</td><td class="pct-col">${fmtPct(c.ind,c.ventas)}</td></tr>
+  <tr><td class="label">Gastos Legales</td><td><input class="ef" type="number" id="f-c-leg" value="${p.c_leg||''}" step="0.01" placeholder="1" oninput="updateCalcs()"></td><td class="computed" id="calc-leg">${fmt(c.leg)}</td><td class="pct-col">${fmtPct(c.leg,c.ventas)}</td></tr>
+  <tr><td class="label">Imprevistos</td><td><input class="ef" type="number" id="f-c-imp" value="${p.c_imp||''}" step="0.01" placeholder="1.5" oninput="updateCalcs()"></td><td class="computed" id="calc-imp">${fmt(c.imp)}</td><td class="pct-col">${fmtPct(c.imp,c.ventas)}</td></tr>
+  <tr><td class="label">Mantenimiento</td><td><input class="ef" type="number" id="f-c-mant" value="${p.c_mant||''}" step="0.01" placeholder="0.5" oninput="updateCalcs()"></td><td class="computed" id="calc-mant">${fmt(c.mant)}</td><td class="pct-col">${fmtPct(c.mant,c.ventas)}</td></tr>
+  <tr class="tg"><td colspan="4">Costo Fijo — % sobre ventas</td></tr>
+  <tr><td class="label">Project Management</td><td><input class="ef" type="number" id="f-c-pm" value="${p.c_pm||''}" step="0.01" placeholder="3.48" oninput="updateCalcs()"></td><td class="computed" id="calc-pm">${fmt(c.pm)}</td><td class="pct-col">${fmtPct(c.pm,c.ventas)}</td></tr>
+  <tr><td class="label">Marketing</td><td><input class="ef" type="number" id="f-c-mkt" value="${p.c_mkt||''}" step="0.01" placeholder="1.16" oninput="updateCalcs()"></td><td class="computed" id="calc-mkt">${fmt(c.mkt)}</td><td class="pct-col">${fmtPct(c.mkt,c.ventas)}</td></tr>
+  <tr><td class="label">Comisiones de Venta</td><td><input class="ef" type="number" id="f-c-com" value="${p.c_com||''}" step="0.01" placeholder="6.96" oninput="updateCalcs()"></td><td class="computed" id="calc-com">${fmt(c.com)}</td><td class="pct-col">${fmtPct(c.com,c.ventas)}</td></tr>
+  <tr><td class="label">Gasto de Venta</td><td><input class="ef" type="number" id="f-c-gv" value="${p.c_gv||''}" step="0.01" placeholder="0.5" oninput="updateCalcs()"></td><td class="computed" id="calc-gv">${fmt(c.gv)}</td><td class="pct-col">${fmtPct(c.gv,c.ventas)}</td></tr>
+  <tr class="ts"><td class="label" colspan="2">SUBTOTAL</td><td class="computed" id="calc-cfijo">${fmt(c.cfijo)}</td><td class="pct-col"><span class="bar" id="bar-cf" style="width:${bw(c.cfijo,c.ventas)}px"></span><span id="calc-cf-pct">${fmtPct(c.cfijo,c.ventas)}</span></td></tr>
+  <tr class="tt"><td class="label" style="color:#fff" colspan="2">TOTAL COSTO</td><td class="computed" style="color:#fff" id="calc-costo">${fmt(c.costo)}</td><td class="pct-col" style="color:#aaa" id="calc-costo-pct">${fmtPct(c.costo,c.ventas)}</td></tr>
+  <tr class="tu"><td class="label" style="color:#fff" colspan="2">UTILIDAD</td><td class="computed" style="color:#fff" id="calc-util">${fmt(c.util)}</td><td class="pct-col" style="color:#b8f0ce" id="calc-util-pct">${fmtPct(c.util,c.ventas)}</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="card-full">
+<div class="ct">Tipos de Departamento — Precios de Venta</div>
+<table class="tipo-table">
+  <thead><tr><th>Tipo</th><th>Unidades</th><th>m²/depto</th><th>$/m²</th><th>Cajones/unidad</th><th>Subtotal Venta</th><th>Total Cajones</th><th></th></tr></thead>
+  <tbody id="tipoContainer">${tipoRows}</tbody>
+</table>
+<button class="btn-add" onclick="addTipo()">+ Agregar tipo</button>
+</div>`;
+}
+
+// ── TIPO MGMT ──
+function addTipo(){
+  tipoIdCounter++;const tid=tipoIdCounter;
+  const tr=document.createElement('tr');tr.className='tipo-row';tr.dataset.id=tid;
+  tr.innerHTML=`<td><input class="ef left" type="text" id="tl-${tid}" value="" placeholder="Tipo" oninput="updateCalcs()"></td><td><input class="ef" type="number" id="tn-${tid}" value="" placeholder="0" oninput="updateCalcs()"></td><td><input class="ef" type="number" id="tm-${tid}" value="" placeholder="0" oninput="updateCalcs()"></td><td><input class="ef" type="number" id="tp-${tid}" value="" placeholder="0" oninput="updateCalcs()"></td><td><input class="ef" type="number" id="tc-${tid}" value="" placeholder="1" oninput="updateCalcs()"></td><td class="tipo-total" id="tt-${tid}">—</td><td><span id="tc-total-${tid}" style="font-size:11px;color:var(--ink3)">—</span></td><td><button class="btn-rm" onclick="removeTipo(${tid})">×</button></td>`;
+  $('tipoContainer').appendChild(tr);
+}
+function removeTipo(id){const el=$('tipoContainer').querySelector(`[data-id="${id}"]`);if(el){el.remove();updateCalcs();}}
+function updateName(val){const p=projects.find(x=>x.id===activeProjId);if(!p)return;p.name=val;const el=document.querySelector(`[onclick="toggleProj('${activeProjId}')"] .sb-pn`);if(el)el.textContent=val;scheduleSave();}
+
+// ── FLUJO FINANCIERO ──
+function renderFlujo(p){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const c=calcResumen(p);
+  const meses=c.meses||24;
+  const flujoData=p.flujo_data||{};
+  const tasaTotalAnual=(p.tiie||6.5)+(p.sobretasa||3);
+  const tasaMensual=tasaTotalAnual/100/12;
+  const comAperturaPct=(p.com_apertura||1.5)/100;
+  const pctCont=(p.pct_contado||30)/100;
+  const ecPct=(p.ec_pct||90)/100;
+  const efPct=(p.ef_pct||35)/100;
+  const precioPromedio=c.precioPromedio;
+
+  // Rubros de egreso con sus totales del resumen
+  const rubros=[
+    {key:'est',   label:'Estudios Téc. y Licencias', total:c.est},
+    {key:'gest',  label:'Gestión',                   total:c.gest},
+    {key:'fia',   label:'Fianza y Seguros',           total:c.fia},
+    {key:'sia',   label:'Factibilidad SIAPA/CFE',     total:c.sia},
+    {key:'cbr',   label:'Bajo Rasante',               total:c.construcBR},
+    {key:'cdep',  label:'Construcción Deptos',        total:c.construcDep},
+    {key:'pe',    label:'Proyecto Ejecutivo',         total:c.pe},
+    {key:'ind',   label:'Indirecto Construcción',     total:c.ind},
+    {key:'leg',   label:'Gastos Legales',             total:c.leg},
+    {key:'imp',   label:'Imprevistos',                total:c.imp},
+    {key:'mant',  label:'Mantenimiento',              total:c.mant},
+    {key:'pm',    label:'Project Management',         total:c.pm},
+    {key:'mkt',   label:'Marketing',                  total:c.mkt},
+    {key:'com',   label:'Comisiones de Venta',        total:c.com, auto:true},
+    {key:'gv',    label:'Gasto de Venta',             total:c.gv},
+    {key:'terr',  label:'Terreno',                    total:c.terrenoTotal},
+  ];
+  // % comisiones sobre precio promedio
+  const comPct=(p.c_com||0)/100;
+  const gvPct=(p.c_gv||0)/100;
+  const months=Array.from({length:meses+1},(_,i)=>i);
+
+  // Build HTML
+  let html=`
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div style="font-size:11px;color:var(--ink4)">Captura los importes por mes en cada rubro. Los totales y caja se calculan automáticamente.</div>
+  <button onclick="recalcFlujo()" style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border:var(--border);border-radius:5px;background:var(--white);color:var(--ink);cursor:pointer">↻ Recalcular</button>
+</div>
+<div class="flujo-wrap">
+<table class="ft" id="flujoTable">
+<thead>
+<tr>
+  <th>Concepto</th>
+  <th>Total</th>
+  <th>Asignado</th>`;
+  months.forEach(i=>html+=`<th>M${i}</th>`);
+  html+=`</tr></thead><tbody>`;
+
+  // VENTAS section
+  html+=`<tr class="frs"><td>VENTAS</td><td></td><td></td>${months.map(()=>'<td></td>').join('')}</tr>`;
+
+  // Unidades vendidas contado
+  html+=`<tr><td>Unid. vendidas contado</td><td style="text-align:right;font-size:10px;color:var(--ink4)">${Math.round(pctCont*c.units)}</td><td id="fa-uvc" style="text-align:right;font-size:10px;color:var(--ink4)">—</td>`;
+  months.forEach(i=>{const v=flujoData[`uvc_${i}`]||'';html+=`<td><input class="fi" type="number" id="fv-uvc-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  // Unidades vendidas financiero
+  html+=`<tr><td>Unid. vendidas financiero</td><td style="text-align:right;font-size:10px;color:var(--ink4)">${Math.round((1-pctCont)*c.units)}</td><td id="fa-uvf" style="text-align:right;font-size:10px;color:var(--ink4)">—</td>`;
+  months.forEach(i=>{const v=flujoData[`uvf_${i}`]||'';html+=`<td><input class="fi" type="number" id="fv-uvf-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  // Unidades escrituradas contado
+  const uescC=Math.round(pctCont*c.units);
+  html+=`<tr><td>Unid. escrituradas contado</td><td style="text-align:right;font-size:10px;color:var(--ink4)">${uescC}</td><td id="fa-uec" style="text-align:right;font-size:10px;color:var(--ink4)">—</td>`;
+  months.forEach(i=>{const v=flujoData[`uec_${i}`]||'';html+=`<td><input class="fi" type="number" id="fv-uec-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  // Unidades escrituradas financiero
+  const uescF=c.units-uescC;
+  html+=`<tr><td>Unid. escrituradas financiero</td><td style="text-align:right;font-size:10px;color:var(--ink4)">${uescF}</td><td id="fa-uef" style="text-align:right;font-size:10px;color:var(--ink4)">—</td>`;
+  months.forEach(i=>{const v=flujoData[`uef_${i}`]||'';html+=`<td><input class="fi" type="number" id="fv-uef-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  // Enganches calculados
+  html+=`<tr class="fri"><td>Enganches</td><td id="ft-eng-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-eng-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Escrituras contado calculadas
+  html+=`<tr class="fri"><td>Escrituras contado (${Math.round((1-ecPct)*100)}%)</td><td id="ft-escc-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-escc-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Escrituras financiero calculadas
+  html+=`<tr class="fri"><td>Escrituras financiero (${Math.round((1-efPct)*100)}%)</td><td id="ft-escf-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-escf-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Total Ingreso
+  html+=`<tr class="fri" style="font-weight:700"><td>TOTAL INGRESO</td><td id="ft-ing-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-ing-${i}">—</td>`);
+  html+=`</tr>`;
+  html+=`<tr class="frs"><td>EGRESOS</td><td></td><td></td>${months.map(()=>'<td></td>').join('')}</tr>`;
+
+  rubros.forEach(r=>{
+    if(r.auto){
+      // Auto-calculated — no input, show computed value per month
+      html+=`<tr><td>${r.label} <span style="font-size:9px;color:var(--ink4)">(auto)</span></td><td style="text-align:right;font-size:11px;font-weight:600">${fmt(r.total)}</td><td id="fa-${r.key}" style="text-align:right;font-size:11px;font-weight:600;color:var(--green)">auto</td>`;
+      months.forEach(i=>html+=`<td id="ft-${r.key}-${i}" style="color:var(--ink3);font-size:11px">—</td>`);
+      html+=`</tr>`;
+    } else {
+      html+=`<tr><td>${r.label}</td><td style="text-align:right;font-size:11px;font-weight:600">${fmt(r.total)}</td><td id="fa-${r.key}" style="text-align:right;font-size:11px;font-weight:600">—</td>`;
+      months.forEach(i=>{const v=flujoData[`egr_${r.key}_${i}`]||'';html+=`<td><input class="fi" type="number" id="fe-${r.key}-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+      html+=`</tr>`;
+    }
+  });
+
+  // Total Egreso
+  html+=`<tr class="fre" style="font-weight:700"><td>TOTAL EGRESO</td><td id="ft-egr-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-egr-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Neto
+  html+=`<tr class="frn"><td>INGRESO − EGRESO</td><td id="ft-neto-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-neto-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Caja acumulada
+  html+=`<tr class="fra"><td>CAJA ACUMULADA</td><td id="ft-caja-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-caja-${i}">—</td>`);
+  html+=`</tr>`;
+
+  // Financiamiento
+  html+=`<tr class="frs"><td>FINANCIAMIENTO</td><td></td><td></td>${months.map(()=>'<td></td>').join('')}</tr>`;
+
+  html+=`<tr class="ffin"><td>Capital propio ($)</td><td></td><td id="fa-cap" style="text-align:right;font-size:11px;font-weight:600">—</td>`;
+  months.forEach(i=>{const v=flujoData[`cap_${i}`]||'';html+=`<td><input class="fi dark" type="number" id="ff-cap-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  html+=`<tr class="ffin"><td>Ministración bancaria ($) <span style="font-size:9px;opacity:.6">línea: ${fmt(c.construc)}</span></td><td></td><td id="fa-ban" style="text-align:right;font-size:11px;font-weight:600">—</td>`;
+  months.forEach(i=>{const v=flujoData[`ban_${i}`]||'';html+=`<td><input class="fi dark" type="number" id="ff-ban-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  html+=`<tr class="ffin"><td>Amortización crédito (bullet) <span style="font-size:9px;opacity:.6">saldo: </span><span id="ft-saldo-banco" style="font-size:9px;opacity:.6">—</span></td><td id="ft-amort-total">—</td><td id="fa-amort" style="text-align:right;font-size:11px;font-weight:600">—</td>`;
+  months.forEach(i=>{const v=flujoData[`amort_${i}`]||'';html+=`<td><input class="fi dark" type="number" id="ff-amort-${i}" value="${v}" placeholder="0" oninput="recalcFlujo()"></td>`;});
+  html+=`</tr>`;
+
+  html+=`<tr class="ffin"><td>Retorno capital al socio <span style="font-size:9px;opacity:.6">(auto — último mes)</span></td><td id="ft-retcap-total">—</td><td id="fa-retcap" style="text-align:right;font-size:11px;color:#6fcf97;font-weight:600">auto</td>`;
+  months.forEach(i=>html+=`<td id="ft-retcap-${i}" style="color:#7a9a7a">—</td>`);
+  html+=`</tr>`;
+
+  html+=`<tr class="ffin"><td>Comisión apertura (1er mes banco)</td><td id="ft-comaper-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-comaper-${i}">—</td>`);
+  html+=`</tr>`;
+
+  html+=`<tr class="fint"><td>Intereses (TIIE ${p.tiie||6.5}% + ${p.sobretasa||3}% = ${tasaTotalAnual.toFixed(2)}% anual · ${(tasaMensual*100).toFixed(4)}%/mes)</td><td id="ft-int-total">—</td><td></td>`;
+  months.forEach(i=>html+=`<td id="ft-int-${i}">—</td>`);
+  html+=`</tr>`;
+
+  html+=`</tbody></table></div>`;
+
+  // Bottom summary
+  html+=`<div class="sum-row" id="flujoSummary">
+    <div class="src"><div class="sl">Total Ingresos</div><div class="sv g" id="fs-ing">—</div></div>
+    <div class="src"><div class="sl">Total Egresos (sin fin.)</div><div class="sv" id="fs-egr">—</div></div>
+    <div class="src"><div class="sl">Intereses + Comisión</div><div class="sv" id="fs-int">—</div></div>
+    <div class="src"><div class="sl">Utilidad Operativa</div><div class="sv" id="fs-util">—</div></div>
+    <div class="src"><div class="sl">Caja Final</div><div class="sv" id="fs-caja">—</div></div>
+  </div>
+  <div id="flujo-check"></div>`;
+
+  $('contentArea').innerHTML=html;
+  recalcFlujo();
+}
+
+function recalcFlujo(){
+  const p=projects.find(x=>x.id===activeProjId);if(!p)return;
+  const c=calcResumen(p);
+  const meses=c.meses||24;
+  const months=Array.from({length:meses+1},(_,i)=>i);
+  const tasaMensual=c.tasa/100/12;
+  const comAperturaPct=(p.com_apertura||1.5)/100;
+  const ecPct=(p.ec_pct||90)/100, efPct=(p.ef_pct||35)/100;
+  const wcPct=1-ecPct, wfPct=1-efPct;
+  const prec=c.precioPromedio;
+  const rubrosKeys=['est','gest','fia','sia','cbr','cdep','pe','ind','leg','imp','mant','pm','mkt','gv','terr'];
+  const autoKeys=['com']; // auto-calculated from units sold
+  const comPctR=c.com/c.ventas||0; // comisiones como % sobre ventas
+
+  let totalEng=0,totalEscC=0,totalEscF=0,totalIng=0,totalEgr=0;
+  let totalInt=0,totalComAper=0,totalCom=0;
+  let cajaAcum=0,saldoBanco=0;
+  let bancoUsed=false;
+
+  // Save flujo data back
+  const fd={};
+
+  months.forEach(i=>{
+    // Ingresos
+    const uvc=nvEl(`fv-uvc-${i}`);
+    const uvf=nvEl(`fv-uvf-${i}`);
+    const uec=nvEl(`fv-uec-${i}`);
+    const uef=nvEl(`fv-uef-${i}`);
+    const eng=uvc*prec*ecPct + uvf*prec*efPct;
+    const escC=uec*prec*wcPct;
+    const escF=uef*prec*wfPct;
+    const esc=escC+escF;
+    const ing=eng+esc;
+    totalEng+=eng; totalEscC+=escC; totalEscF+=escF; totalIng+=ing;
+
+    // Comisiones auto
+    const unidVendidas=uvc+uvf;
+    const comMes=unidVendidas*prec*comPctR;
+    totalCom+=comMes;
+    const comCell=$(`ft-com-${i}`);
+    if(comCell){comCell.textContent=comMes?fmt(comMes):'—';comCell.style.color=comMes?'var(--ink2)':'var(--ink4)';}
+
+    // Egresos manuales + comisiones auto
+    let egr=comMes;
+    rubrosKeys.forEach(k=>{egr+=nvEl(`fe-${k}-${i}`);});
+
+    // Financiamiento
+    const capM=nvEl(`ff-cap-${i}`);
+    const banM=nvEl(`ff-ban-${i}`);
+    const amortM=nvEl(`ff-amort-${i}`);
+
+    // Intereses se calculan sobre saldo ANTES de ministrar y amortizar este mes
+    const interes=saldoBanco*tasaMensual;
+
+    // Actualizar saldo bancario
+    saldoBanco+=banM-amortM;
+    if(saldoBanco<0) saldoBanco=0;
+
+    // Comisión apertura: solo primer mes con ministración bancaria
+    let comAper=0;
+    if(banM>0&&!bancoUsed){comAper=c.construc*comAperturaPct;bancoUsed=true;}
+
+    totalInt+=interes; totalComAper+=comAper;
+    totalEgr+=egr;
+
+    // Retorno de capital: automático en el último mes (= capital total aportado)
+    // Se calcula después del loop y se coloca en el último mes
+    const retCapM=0; // placeholder, se recalcula abajo
+
+    // Neto mensual:
+    // ENTRADAS: ingresos ventas + capital propio + ministración bancaria
+    // SALIDAS:  egresos operativos + amortización + intereses + comisión apertura
+    // (retorno de capital se suma al final después del loop)
+    const neto = ing + capM + banM - egr - amortM - interes - comAper;
+    cajaAcum+=neto;
+
+    // Set cells
+    set(`ft-eng-${i}`, eng?fmt(eng):'—');
+    set(`ft-escc-${i}`, escC?fmt(escC):'—');
+    set(`ft-escf-${i}`, escF?fmt(escF):'—');
+    set(`ft-ing-${i}`, ing?fmt(ing):'—');
+    set(`ft-egr-${i}`, egr?fmt(egr):'—');
+    const netoEl=$(`ft-neto-${i}`);
+    if(netoEl){netoEl.textContent=neto?fmt(neto):'—';netoEl.className=neto>0?'pos':neto<0?'neg':'';}
+    const cajaEl=$(`ft-caja-${i}`);
+    if(cajaEl){cajaEl.textContent=cajaAcum?fmt(cajaAcum):'—';cajaEl.className=cajaAcum>0?'pos':cajaAcum<0?'neg':'';}
+    set(`ft-comaper-${i}`, comAper?fmt(comAper):'—');
+    set(`ft-int-${i}`, interes?fmt(interes):'—');
+    set(`ft-amort-${i}`, amortM?fmt(amortM):'—');
+
+    // Save to fd
+    fd[`uvc_${i}`]=($(`fv-uvc-${i}`)?.value||'').replace(/,/g,'');
+    fd[`uvf_${i}`]=($(`fv-uvf-${i}`)?.value||'').replace(/,/g,'');
+    fd[`uec_${i}`]=($(`fv-uec-${i}`)?.value||'').replace(/,/g,'');
+    fd[`uef_${i}`]=($(`fv-uef-${i}`)?.value||'').replace(/,/g,'');
+    fd[`cap_${i}`]=($(`ff-cap-${i}`)?.value||'').replace(/,/g,'');
+    fd[`ban_${i}`]=($(`ff-ban-${i}`)?.value||'').replace(/,/g,'');
+    fd[`amort_${i}`]=($(`ff-amort-${i}`)?.value||'').replace(/,/g,'');
+    rubrosKeys.forEach(k=>{fd[`egr_${k}_${i}`]=($(`fe-${k}-${i}`)?.value||'').replace(/,/g,'');});
+  });
+
+  // Totals column
+  const totalAmort=months.reduce((a,i)=>a+nvEl(`ff-amort-${i}`),0);
+
+  // Retorno de capital: total capital invertido, sale en el último mes
+  const totalCapInv=months.reduce((a,i)=>a+nvEl(`ff-cap-${i}`),0);
+  // Caja antes de retorno = cajaAcum
+  // Retorno de capital sale del último mes — se descuenta de la caja
+  // Caja final objetivo = utilidad neta del resumen (util - costoFin)
+  // El retorno = cajaAcum - utilidadNeta esperada
+  // Pero lo más simple: retorno = totalCapInv (el socio recupera lo que metió)
+  // La utilidad neta queda como remanente
+  const retornoCapital = totalCapInv;
+  cajaAcum -= retornoCapital; // caja final = caja sin retorno - capital devuelto
+
+  // Mostrar retorno en el último mes con ingreso
+  const lastMonthWithIng = months.slice().reverse().find(i => {
+    const ingVal = parseFloat($(`ft-ing-${i}`)?.textContent?.replace(/[$,]/g,''))||0;
+    return ingVal > 0;
+  }) ?? months[months.length-1];
+
+  // Clear all retcap cells first
+  months.forEach(i=>{set(`ft-retcap-${i}`,'—');});
+  // Place retorno in last active month
+  const retCell=$(`ft-retcap-${lastMonthWithIng}`);
+  if(retCell){retCell.textContent=retornoCapital?fmt(retornoCapital):'—';retCell.style.color='#e07070';}
+  set('ft-retcap-total', fmt(retornoCapital));
+  set('ft-amort-total', fmt(totalAmort));
+  // Show remaining saldo bancario
+  const saldoFinal=months.reduce((a,i)=>a+nvEl(`ff-ban-${i}`),0)-totalAmort;
+  const saldoEl=$('ft-saldo-banco');
+  if(saldoEl){saldoEl.textContent=saldoFinal>0?fmt(saldoFinal)+' pendiente':'✓ Liquidado';saldoEl.style.color=saldoFinal>0?'#e07070':'#6fcf97';}
+  const sumBanTotal=months.reduce((a,i)=>a+nvEl(`ff-ban-${i}`),0);
+  const amortEl=$('fa-amort');
+  if(amortEl){
+    if(totalAmort===0){amortEl.textContent='—';amortEl.style.color='#7a9a7a';}
+    else if(Math.abs(totalAmort-sumBanTotal)<1){amortEl.textContent='✓ '+fmt(totalAmort);amortEl.style.color='#6fcf97';}
+    else if(totalAmort>sumBanTotal){amortEl.textContent='⚠ excede';amortEl.style.color='#e07070';}
+    else{amortEl.textContent=fmt(totalAmort)+' / '+fmt(sumBanTotal);amortEl.style.color='#b87333';}
+  }
+  set('ft-eng-total', fmt(totalEng));
+  set('ft-escc-total', fmt(totalEscC));
+  set('ft-escf-total', fmt(totalEscF));
+  set('ft-ing-total', fmt(totalIng)); set('ft-egr-total', fmt(totalEgr));
+  const netoTot=totalIng-totalEgr-totalAmort-totalComAper-totalInt;
+  const netoTotEl=$('ft-neto-total');
+  if(netoTotEl){netoTotEl.textContent=fmt(netoTot);netoTotEl.className=netoTot>0?'pos':netoTot<0?'neg':'';}
+  const cajaTotEl=$('ft-caja-total');
+  if(cajaTotEl){cajaTotEl.textContent=fmt(cajaAcum);cajaTotEl.className=cajaAcum>0?'pos':cajaAcum<0?'neg':'';}
+  set('ft-comaper-total', fmt(totalComAper));
+  set('ft-int-total', fmt(totalInt));
+
+  // Summary bar + cross-check
+  const totalEgrOperativo=totalEgr; // sin intereses ni comisión
+  const totalFinanciero=totalComAper+totalInt;
+  const utilFlujoOp=totalIng-totalEgrOperativo;      // utilidad sin financieros
+  const utilFlujoNeta=utilFlujoOp-totalFinanciero;   // utilidad con financieros = caja final
+
+  const checkIngreso=Math.abs(totalIng-c.ventas)<500;
+  const checkCosto=Math.abs(totalEgrOperativo-c.costo)<500;
+  const checkUtil=Math.abs(utilFlujoOp-c.util)<500;
+  const checkFin=Math.abs(totalFinanciero-c.costoFin)<500;
+  const checkCaja=Math.abs(cajaAcum-c.utilFin)<500;
+  const allOk=checkIngreso&&checkCosto&&checkUtil;
+
+  set('fs-ing', fmt(totalIng));
+  set('fs-egr', fmt(totalEgrOperativo));
+  set('fs-int', fmt(totalFinanciero));
+  set('fs-util', fmt(utilFlujoOp));
+  const cajaFinalEl=$('fs-caja');
+  if(cajaFinalEl){
+    cajaFinalEl.textContent=fmt(cajaAcum);
+    cajaFinalEl.className='sv'+(cajaAcum>=0?' g':' r');
+  }
+
+  // Cross-check panel
+  const checkEl=$('flujo-check');
+  if(checkEl){
+    checkEl.innerHTML=`
+    <div style="margin-top:12px;border:var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="background:#f5f5f3;padding:8px 16px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ink4)">Check Resumen vs Flujo</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr) 120px;gap:0;background:#e4e4e0">
+        <div style="background:var(--white);padding:14px 16px;border-right:var(--border)">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);margin-bottom:6px">Ingresos</div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Resumen: ${fmt(c.ventas)}</div>
+          <div style="font-size:13px;font-weight:700;color:${checkIngreso?'var(--green)':'#e07070'}">Flujo: ${fmt(totalIng)} ${checkIngreso?'✓':'⚠'}</div>
+        </div>
+        <div style="background:var(--white);padding:14px 16px;border-right:var(--border)">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);margin-bottom:6px">Costo Operativo</div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Resumen: ${fmt(c.costo)}</div>
+          <div style="font-size:13px;font-weight:700;color:${checkCosto?'var(--green)':'#e07070'}">Flujo: ${fmt(totalEgrOperativo)} ${checkCosto?'✓':'⚠'}</div>
+        </div>
+        <div style="background:var(--white);padding:14px 16px;border-right:var(--border)">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);margin-bottom:6px">Utilidad Operativa</div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Resumen: ${fmt(c.util)}</div>
+          <div style="font-size:13px;font-weight:700;color:${checkUtil?'var(--green)':'#e07070'}">Flujo: ${fmt(utilFlujoOp)} ${checkUtil?'✓':'⚠'}</div>
+        </div>
+        <div style="background:var(--white);padding:14px 16px;border-right:var(--border)">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);margin-bottom:6px">Costo Financiero</div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Resumen: ${fmt(c.costoFin)}</div>
+          <div style="font-size:13px;font-weight:700;color:${checkFin?'var(--green)':'#e07070'}">Flujo: ${fmt(totalFinanciero)} ${checkFin?'✓':'⚠'}</div>
+        </div>
+        <div style="background:var(--white);padding:14px 16px;border-right:var(--border)">
+          <div style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink4);margin-bottom:6px">Caja Final = Util. Neta</div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">Resumen: ${fmt(c.utilFin)}</div>
+          <div style="font-size:13px;font-weight:700;color:${checkCaja?'var(--green)':'#e07070'}">Flujo: ${fmt(cajaAcum)} ${checkCaja?'✓':'⚠'}</div>
+        </div>
+        <div style="background:${allOk&&checkCaja?'var(--green)':'#8b2e2e'};padding:14px 16px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px">
+          <div style="font-size:22px;color:#fff">${allOk&&checkCaja?'✓':'⚠'}</div>
+          <div style="font-size:10px;font-weight:600;color:#fff;text-align:center;line-height:1.4">${allOk&&checkCaja?'Cuadra':'Revisar'}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Remove stale inner loop
+  // Update acum display per rubro (manual)
+  const rubrosDef2=[
+    {key:'est',total:c.est},{key:'gest',total:c.gest},{key:'fia',total:c.fia},{key:'sia',total:c.sia},
+    {key:'cbr',total:c.construcBR},{key:'cdep',total:c.construcDep},
+    {key:'pe',total:c.pe},{key:'ind',total:c.ind},{key:'leg',total:c.leg},{key:'imp',total:c.imp},{key:'mant',total:c.mant},
+    {key:'pm',total:c.pm},{key:'mkt',total:c.mkt},{key:'gv',total:c.gv},{key:'terr',total:c.terrenoTotal},
+  ];
+  rubrosDef2.forEach(r=>{
+    const acum=months.reduce((a,i)=>a+(parseFloat($(`fe-${r.key}-${i}`)?.value)||0),0);
+    const el=$(`fa-${r.key}`);
+    if(!el)return;
+    const diff=r.total-acum;
+    if(acum===0){el.textContent='—';el.style.color='var(--ink4)';}
+    else if(Math.abs(diff)<1){el.textContent='✓ '+fmt(acum);el.style.color='var(--green)';}
+    else if(acum>r.total+1){el.textContent='⚠ '+fmt(acum);el.style.color='#e07070';}
+    else{el.textContent=fmt(acum)+' (falta '+fmt(diff)+')';el.style.color='#b87333';}
+  });
+  // Auto: comisiones
+  const faComEl=$('fa-com');
+  if(faComEl){faComEl.textContent='Auto: '+fmt(totalCom);faComEl.style.color=Math.abs(totalCom-c.com)<1?'var(--green)':'#b87333';}
+  set('ft-com-total', fmt(totalCom));
+
+  // Asignado for ventas rows
+  const sumUvc=months.reduce((a,i)=>a+nvEl(`fv-uvc-${i}`),0);
+  const sumUvf=months.reduce((a,i)=>a+nvEl(`fv-uvf-${i}`),0);
+  const sumUec=months.reduce((a,i)=>a+nvEl(`fv-uec-${i}`),0);
+  const sumUef=months.reduce((a,i)=>a+nvEl(`fv-uef-${i}`),0);
+  const sumCap=months.reduce((a,i)=>a+nvEl(`ff-cap-${i}`),0);
+  const sumBan=months.reduce((a,i)=>a+nvEl(`ff-ban-${i}`),0);
+  const pctContNum=(p.pct_contado||30)/100;
+  const totUvc=Math.round(pctContNum*c.units), totUvf=c.units-totUvc;
+  const setAsig=(id,asig,total)=>{const el=$(id);if(!el)return;if(asig===0){el.textContent='—';el.style.color='var(--ink4)';}else if(Math.abs(asig-total)<0.5){el.textContent='✓ '+asig;el.style.color='var(--green)';}else if(asig>total){el.textContent='⚠ '+asig;el.style.color='#e07070';}else{el.textContent=asig+' / '+total;el.style.color='#b87333';}};
+  setAsig('fa-uvc',sumUvc,totUvc);
+  setAsig('fa-uvf',sumUvf,totUvf);
+  setAsig('fa-uec',sumUec,totUvc);
+  setAsig('fa-uef',sumUef,totUvf);
+
+  // Asignado for financiamiento
+  const setFin=(id,asig,total,hasLimit)=>{
+    const el=$(id);if(!el)return;
+    if(asig===0){el.textContent='—';el.style.color='#7a9a7a';return;}
+    if(hasLimit){
+      if(asig>total+1){el.textContent='⚠ '+fmt(asig)+' — excede línea';el.style.color='#e07070';}
+      else{el.textContent='✓ '+fmt(asig);el.style.color='#6fcf97';}
+    } else {
+      el.textContent='✓ '+fmt(asig);el.style.color='#6fcf97';
+    }
+  };
+  setFin('fa-cap', sumCap, c.cap, false);
+  setFin('fa-ban', sumBan, c.construc, true);
+
+  // Update project flujo_data in memory so calcResumen picks up new cap/banco/intereses
+  p.flujo_data=fd;
+  // Refresh resumen financiero cells with real flujo data
+  const cRefresh=calcResumen(p);
+  set('calc-costoFin', fmt(cRefresh.costoFin));
+  set('calc-utilFin', fmt(cRefresh.utilFin));
+  set('calc-cap', fmt(cRefresh.cap));
+  set('calc-banco', fmt(cRefresh.banco));
+  const dispRefresh=cRefresh.construc-cRefresh.banco;
+  const dispEl2=$('calc-disponible');
+  if(dispEl2){dispEl2.textContent=fmt(dispRefresh);dispEl2.style.color=dispRefresh>=0?'var(--green)':'#e07070';}
+  // Refresh KPIs
+  const kpiInv=$('kpi-inv');
+  if(kpiInv){kpiInv.querySelector('.kv').textContent=fmt(cRefresh.cap+cRefresh.banco);}
+  const kpiRend=$('kpi-rend');
+  if(kpiRend){kpiRend.querySelector('.kv').textContent=cRefresh.cap+cRefresh.banco?fmtPct(cRefresh.utilFin,cRefresh.cap+cRefresh.banco):'—';}
+
+  scheduleSaveFlujo(fd);
+}
+
+let flujoSaveTimer=null;
+function scheduleSaveFlujo(fd){
+  clearTimeout(flujoSaveTimer);
+  setSave('saving');
+  flujoSaveTimer=setTimeout(async()=>{
+    const p=projects.find(x=>x.id===activeProjId);if(!p)return;
+    const{error}=await supa.from('projects').update({flujo_data:fd}).eq('id',p.id);
+    if(!error){p.flujo_data=fd;setSave('saved');setTimeout(()=>setSave(''),3000);}
+    else{setSave('');toast('Error al guardar flujo','err');}
+  },1500);
+}
+
+// ── SAVE RESUMEN ──
+function scheduleSave(){clearTimeout(saveTimer);setSave('saving');saveTimer=setTimeout(saveProject,1200);}
+async function saveProject(){
+  const p=projects.find(x=>x.id===activeProjId);if(!p)return;
+  const tipos=getTipos();
+  const row={
+    name:$('f-g-name')?.value||p.name,escenario:$('f-g-esc')?.value||p.escenario,
+    meses:nv('f-g-meses')||p.meses,tasa:nv('f-g-tasa')||p.tasa,
+    pct_contado:nv('f-v-pct')||p.pct_contado,
+    ec_pct:nv('f-v-ec')||p.ec_pct,ef_pct:nv('f-v-ef')||p.ef_pct,
+    com_apertura:nv('f-v-comaper')||p.com_apertura,
+    tiie:nv('f-v-tiie')||p.tiie,
+    sobretasa:nv('f-v-sobretasa')||p.sobretasa,
+    tipos:tipos.filter(t=>t.n>0).length?tipos:p.tipos,
+    e_m2:nv('f-e-m2')||p.e_m2,
+    terr_m2:nv('f-t-m2')||p.terr_m2,terr_cus:nv('f-t-cus')||p.terr_cus,
+    terr_amen:nv('f-t-amen')||p.terr_amen,terr_pct:nv('f-t-pct')||p.terr_pct,
+    terr_fidpct:nv('f-t-fidpct')||p.terr_fidpct,
+    c_br:nv('f-c-br')||p.c_br,c_dep:nv('f-c-dep')||p.c_dep,
+    c_est:nv('f-c-est')||p.c_est,c_gest:nv('f-c-gest')||p.c_gest,
+    c_fia:nv('f-c-fia')||p.c_fia,c_sia:nv('f-c-sia')||p.c_sia,
+    c_pe:nv('f-c-pe')||p.c_pe,c_ind:nv('f-c-ind')||p.c_ind,
+    c_leg:nv('f-c-leg')||p.c_leg,c_imp:nv('f-c-imp')||p.c_imp,
+    c_mant:nv('f-c-mant')||p.c_mant,
+    c_pm:nv('f-c-pm')||p.c_pm,c_mkt:nv('f-c-mkt')||p.c_mkt,
+    c_com:nv('f-c-com')||p.c_com,c_gv:nv('f-c-gv')||p.c_gv,
+  };
+  const{error}=await supa.from('projects').update(row).eq('id',p.id);
+  if(error){setSave('');toast('Error al guardar','err');return;}
+  Object.assign(p,row);setSave('saved');setTimeout(()=>setSave(''),3000);
+}
+
+// ── NEW / DELETE ──
+function openNewProject(){$('np-name').value='';$('npOverlay').classList.add('open');setTimeout(()=>$('np-name').focus(),100);}
+function closeNewProject(){$('npOverlay').classList.remove('open');}
+async function createNewProject(){
+  const name=$('np-name').value.trim();if(!name){$('np-name').focus();return;}
+  const{data,error}=await supa.from('projects').insert([{name,escenario:$('np-esc').value}]).select().single();
+  if(error){toast('Error al crear','err');return;}
+  projects.push(data);activeProjId=data.id;activeView='resumen';
+  renderSidebar();renderView();closeNewProject();toast('Proyecto creado ✓');
+}
+function openDelete(id,name){deleteTargetId=id;$('delMsg').textContent=`¿Eliminar "${name}"? Esta acción no se puede deshacer.`;$('delOverlay').classList.add('open');}
+function closeDelete(){deleteTargetId=null;$('delOverlay').classList.remove('open');}
+async function confirmDelete(){
+  if(!deleteTargetId)return;
+  const{error}=await supa.from('projects').delete().eq('id',deleteTargetId);
+  if(error){toast('Error al eliminar','err');closeDelete();return;}
+  projects=projects.filter(p=>p.id!==deleteTargetId);
+  if(activeProjId===deleteTargetId){activeProjId=null;showEmpty();}
+  closeDelete();renderSidebar();toast('Proyecto eliminado');
+}
+// ── INPUT FORMATTING (comas en inputs numéricos — solo resumen ejecutivo) ──
+function setupInputFormatting(){
+  // Solo aplicar a inputs del resumen ejecutivo (.ef), NO a inputs del flujo (.fi)
+  document.querySelectorAll('.ef').forEach(el=>{
+    if(el._fmtBound||el.type==='text') return;
+    el._fmtBound=true;
+    el.addEventListener('blur',()=>{
+      const raw=parseFloat((el.value||'').replace(/,/g,''));
+      if(!isNaN(raw)&&raw!==0) el.value=Math.round(raw).toLocaleString('es-MX');
+      else if(el.value==='0') el.value='';
+    });
+    el.addEventListener('focus',()=>{
+      el.value=(el.value||'').replace(/,/g,'');
+      el.select();
+    });
+  });
+}
+
+// Patch renderView to run formatting after render
+const _rv=renderView;
+renderView=function(){_rv();setTimeout(setupInputFormatting,100);};
+
+loadProjects();
+</script>
+</body>
+</html>
